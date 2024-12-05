@@ -54,7 +54,7 @@ class ProductDetailViewController: UIViewController {
     
     private func hideDiscountButtonIfNeeded() {
         // Hide discount button if we are customer
-        discountButton.isHidden = !(User.shared.getAdminStatus())
+        discountButton.isHidden = !(User.getInstance().getAdminStatus())
     }
 
     // MARK: - Observer for Discounts

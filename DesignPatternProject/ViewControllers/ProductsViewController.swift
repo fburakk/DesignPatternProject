@@ -54,7 +54,7 @@ class ProductsViewController: UIViewController {
     
     private func hideUploadButtonIfNeeded() {
         // Hide upload button if we are customer
-        uploadProductButton.isHidden = !(User.shared.getAdminStatus())
+        uploadProductButton.isHidden = !(User.getInstance().getAdminStatus())
     }
     
     deinit {
