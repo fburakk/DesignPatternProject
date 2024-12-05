@@ -7,8 +7,23 @@
 
 import Foundation
 
-class DiscountObserver {
-    static let shared = DiscountObserver()
+
+protocol Observer: AnyObject {
+    
+    func update(productId: String, discount: Double)
+}
+
+
+protocol Subject {
+    
+    func addObserver(_ observer: Observer)
+    func removeObserver(_ observer: Observer)
+    func notifyObservers(for productId: String, discount: Double)
+}
+
+
+class DiscountSubject {
+    static let shared = DiscountSubject()
 
     private init() {}
 
@@ -32,5 +47,14 @@ class DiscountObserver {
         for handler in observers.values {
             handler(productId, discount)
         }
+    }
+}
+
+
+
+class ConcreteObserver: Observer {
+    
+    func update(productId: String, discount: Double) {
+        print("Product \(productId) has a new discount: \(discount)%")
     }
 }
