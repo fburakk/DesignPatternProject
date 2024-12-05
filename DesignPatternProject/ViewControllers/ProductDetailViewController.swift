@@ -60,7 +60,7 @@ class ProductDetailViewController: UIViewController {
     // MARK: - Observer for Discounts
     private func observeDiscounts() {
         guard let product = product else { return }
-        DiscountObserver.shared.addObserver(self) { [weak self] productId, discount in
+        DiscountSubject.shared.addObserver(self) { [weak self] productId, discount in
             guard let self = self, productId == product.id else { return }
             self.priceLabel.text = "$\(product.price - discount)"
             self.scheduleLocalNotification(for: product.name ?? "Product", discount: discount)
@@ -97,7 +97,7 @@ class ProductDetailViewController: UIViewController {
 
         // Simulate adding a discount for the product
         let discount = 10.0 // Example discount value
-        DiscountObserver.shared.notifyObservers(for: product.id ?? "", discount: discount)
+        DiscountSubject.shared.notifyObservers(for: product.id ?? "", discount: discount)
     }
 
     @IBAction func addToCartButtonTapped(_ sender: Any) {
@@ -150,6 +150,6 @@ class ProductDetailViewController: UIViewController {
     }
 
     deinit {
-        DiscountObserver.shared.removeObserver(self)
+        DiscountSubject.shared.removeObserver(self)
     }
 }
