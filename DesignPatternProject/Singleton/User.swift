@@ -11,11 +11,20 @@ import UIKit
 /// Singleton to manage user settings
 final class User {
     // Shared instance for Singleton
-    static let shared = User()
+    private static var shared : User?
 
     // Private initializer to restrict instantiation
     private init() {}
 
+    
+    static func getInstance() -> User {
+        if shared == nil {
+            shared = User()
+        }
+        return shared!
+    }
+    
+    
     // Private properties
     private var isAdmin: Bool = false
     private var theme: Theme = .light

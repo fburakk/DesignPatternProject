@@ -23,7 +23,7 @@ class ProductsViewController: UIViewController {
         fetchProducts()
         
         // Add observer for product updates
-        observerId = ProductObserver.shared.addObserver(self) { [weak self] updatedProducts in
+        observerId = ProductSubject.shared.addObserver(self) { [weak self] updatedProducts in
             self?.products = updatedProducts
             self?.collectionView.reloadData()
         }
@@ -54,12 +54,12 @@ class ProductsViewController: UIViewController {
     
     private func hideUploadButtonIfNeeded() {
         // Hide upload button if we are customer
-        uploadProductButton.isHidden = !(User.shared.getAdminStatus())
+        uploadProductButton.isHidden = !(User.getInstance().getAdminStatus())
     }
     
     deinit {
         if let observerId = observerId {
-            ProductObserver.shared.removeObserver(with: observerId)
+            ProductSubject.shared.removeObserver(with: observerId)
         }
     }
     

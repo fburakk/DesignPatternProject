@@ -31,15 +31,30 @@ import Foundation
       `ProductsViewController` or other observers. This promotes modularity and scalability.
 */
 
+
+
+
+protocol PProductObserver: AnyObject {
+    func update(products: [Product])
+}
+
+
+protocol PProductSubject {
+    func addObserver(_ observer: PProductObserver)
+    func removeObserver(_ observer: PProductObserver)
+    func notifyObservers(with products: [Product])
+}
+
+
 /// A singleton class that manages observers for product updates.
 /// This class is responsible for notifying registered observers when product-related changes occur,
 /// such as adding, updating, or deleting products.
-class ProductObserver {
+class ProductSubject {
     
     // MARK: - Singleton Instance
 
     /// The shared singleton instance of `ProductObserver`.
-    static let shared = ProductObserver()
+    static let shared = ProductSubject()
 
     // Private initializer to ensure only one instance is created.
     private init() {}

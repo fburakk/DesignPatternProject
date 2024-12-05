@@ -8,16 +8,16 @@
 import Foundation
 
 
-protocol Observer: AnyObject {
+protocol PDiscountObserver: AnyObject {
     
     func update(productId: String, discount: Double)
 }
 
 
-protocol Subject {
+protocol PDiscountSubject {
     
-    func addObserver(_ observer: Observer)
-    func removeObserver(_ observer: Observer)
+    func addObserver(_ observer: PDiscountObserver)
+    func removeObserver(_ observer: PDiscountObserver)
     func notifyObservers(for productId: String, discount: Double)
 }
 
@@ -52,7 +52,7 @@ class DiscountSubject {
 
 
 
-class ConcreteObserver: Observer {
+class ConcreteObserver: PDiscountObserver {
     
     func update(productId: String, discount: Double) {
         print("Product \(productId) has a new discount: \(discount)%")

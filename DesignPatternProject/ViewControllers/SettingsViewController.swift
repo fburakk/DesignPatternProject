@@ -15,17 +15,17 @@ class SettingsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Initialize UI with Singleton values
-        adminSwitch.isOn = User.shared.getAdminStatus()
-        themeSegmentedControl.selectedSegmentIndex = User.shared.getTheme() == .light ? 0 : 1
+        adminSwitch.isOn = User.getInstance().getAdminStatus()
+        themeSegmentedControl.selectedSegmentIndex = User.getInstance().getTheme() == .light ? 0 : 1
     }
 
     @IBAction func themeSegmentedControlChanged(_ sender: UISegmentedControl) {
         let selectedTheme: Theme = sender.selectedSegmentIndex == 0 ? .light : .dark
-        User.shared.setTheme(to: selectedTheme)
+        User.getInstance().setTheme(to: selectedTheme)
     }
     
     
     @IBAction func adminSwitchChanged(_ sender: UISwitch) {
-        User.shared.setAdminStatus(to: sender.isOn)
+        User.getInstance().setAdminStatus(to: sender.isOn)
     }
 }
