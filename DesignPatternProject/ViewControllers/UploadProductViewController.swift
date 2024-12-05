@@ -73,7 +73,7 @@ class UploadProductViewController: UIViewController, UIImagePickerControllerDele
                     self.productContext.executeStrategy { fetchResult in
                         switch fetchResult {
                         case .success(let products):
-                            ProductObserver.shared.notifyObservers(with: products as! [Product])
+                            ProductSubject.shared.notifyObservers(with: products as! [Product])
                         case .failure(let error):
                             print("Failed to fetch products: \(error.localizedDescription)")
                         }
