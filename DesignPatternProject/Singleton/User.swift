@@ -8,50 +8,50 @@
 import Foundation
 import UIKit
 
-/// Singleton to manage user settings
+// Singleton to manage user settings
+// This class ensures only one instance exists and provides global access to it.
 final class User {
-    // Shared instance for Singleton
-    private static var shared : User?
-
-    // Private initializer to restrict instantiation
-    private init() {}
-
+    // The shared instance of the User class
+    private static var shared: User?
     
+    // Private initializer to prevent instantiation from outside
+    private init() {}
+    
+    // Provides the single shared instance of the User class
     static func getInstance() -> User {
         if shared == nil {
-            shared = User()
+            shared = User() // Create the instance if it doesn't exist
         }
         return shared!
     }
     
-    
-    // Private properties
     private var isAdmin: Bool = false
     private var theme: Theme = .light
-
-    // Getter for isAdmin
+    
+    // Retrieves the admin status
     func getAdminStatus() -> Bool {
         return isAdmin
     }
-
-    // Setter for isAdmin
+    
+    // Updates the admin status
     func setAdminStatus(to status: Bool) {
         isAdmin = status
         print("Admin status updated to: \(isAdmin ? "Admin" : "User")")
     }
-
-    // Getter for theme
+    
+    // Retrieves the current theme
     func getTheme() -> Theme {
         return theme
     }
-
-    // Setter for theme
+    
+    // Updates the theme and applies it to the application
     func setTheme(to newTheme: Theme) {
         theme = newTheme
         applyTheme()
         print("Theme changed to: \(theme == .light ? "Light" : "Dark")")
     }
-    // Function to apply the current theme globally
+    
+    // Applies the current theme to the application's user interface
     private func applyTheme() {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
@@ -62,7 +62,7 @@ final class User {
     }
 }
 
-/// Enum to represent theme options
+// Enum to represent theme options
 enum Theme {
     case light
     case dark

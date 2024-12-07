@@ -18,7 +18,6 @@ class ProductDetailViewController: UIViewController {
 
     // MARK: - Properties
     var product: Product?
-    private var observerId: UUID?
     private let cartContext = CartContext(strategy: AddToCart())
     private let shippingContext = ShippingContext(strategy: StandardShipping())
     private let paymentContext = PaymentContext(strategy: CreditCardPayment())
@@ -26,12 +25,12 @@ class ProductDetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        observeDiscounts()
+        setupDiscountObserver()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        hideDiscountButtonIfNeeded()
+        toggleDiscountButtonVisibility()
     }
 
     // MARK: - UI Setup
@@ -41,52 +40,55 @@ class ProductDetailViewController: UIViewController {
         titleLabel.text = product.name ?? "Unknown Product"
         priceLabel.text = "$\(product.price)"
 
-        if let imageData = product.imageData {
-            imageView.image = UIImage(data: imageData)
-        } else {
-            imageView.image = UIImage(systemName: "photo") // Placeholder
-        }
+        // Set product image or placeholder
+        imageView.image = product.imageData.flatMap { UIImage(data: $0) } ?? UIImage(systemName: "photo")
 
-        // Configure segmented controls with default values
+        // Configure default segmented control values
         shippingSegmentedControl.selectedSegmentIndex = 0
         paymentSegmentedControl.selectedSegmentIndex = 0
     }
     
-    private func hideDiscountButtonIfNeeded() {
-        // Hide discount button if we are customer
-        discountButton.isHidden = !(User.getInstance().getAdminStatus())
+    // Hides or shows the discount button based on admin status
+    private func toggleDiscountButtonVisibility() {
+        discountButton.isHidden = !User.getInstance().getAdminStatus()
     }
 
-    // MARK: - Observer for Discounts
-    private func observeDiscounts() {
+    // MARK: - Discount Observer
+    private func setupDiscountObserver() {
         guard let product = product else { return }
         DiscountSubject.shared.addObserver(self) { [weak self] productId, discount in
             guard let self = self, productId == product.id else { return }
-            self.priceLabel.text = "$\(product.price - discount)"
-            self.scheduleLocalNotification(for: product.name ?? "Product", discount: discount)
+            self.updatePriceLabel(discount: discount)
+            self.scheduleDiscountNotification(for: product.name ?? "Product", discount: discount)
         }
+    }
+    
+    private func updatePriceLabel(discount: Double) {
+        guard let product = product else { return }
+        let discountedPrice = product.price - discount
+        priceLabel.text = "$\(discountedPrice)"
     }
 
     // MARK: - Local Notification
-    private func scheduleLocalNotification(for productName: String, discount: Double) {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if granted {
-                let content = UNMutableNotificationContent()
-                content.title = "Discount Alert!"
-                content.body = "\(productName) is now discounted by $\(discount). Don't miss out!"
-                content.sound = .default
+    private func scheduleDiscountNotification(for productName: String, discount: Double) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            guard granted, error == nil else {
+                print("Notification permission denied or failed: \(error?.localizedDescription ?? "Unknown error")")
+                return
+            }
 
-                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-                let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+            let content = UNMutableNotificationContent()
+            content.title = "Discount Alert!"
+            content.body = "\(productName) is now discounted by $\(discount). Don't miss out!"
+            content.sound = .default
 
-                center.add(request) { error in
-                    if let error = error {
-                        print("Failed to schedule notification: \(error)")
-                    }
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("Failed to schedule notification: \(error.localizedDescription)")
                 }
-            } else {
-                print("Notification permission denied.")
             }
         }
     }
@@ -94,8 +96,6 @@ class ProductDetailViewController: UIViewController {
     // MARK: - Actions
     @IBAction func discountButtonTapped(_ sender: Any) {
         guard let product = product else { return }
-
-        // Simulate adding a discount for the product
         let discount = 10.0 // Example discount value
         DiscountSubject.shared.notifyObservers(for: product.id ?? "", discount: discount)
     }
@@ -103,24 +103,8 @@ class ProductDetailViewController: UIViewController {
     @IBAction func addToCartButtonTapped(_ sender: Any) {
         guard let product = product else { return }
 
-        // Update shipping and payment contexts
-        let selectedShippingIndex = shippingSegmentedControl.selectedSegmentIndex
-        let selectedPaymentIndex = paymentSegmentedControl.selectedSegmentIndex
-
-        let shippingStrategy: ShippingMethodStrategy = (selectedShippingIndex == 0) ? StandardShipping() : ExpressShipping()
-        var paymentStrategy: PaymentMethodStrategy = CreditCardPayment()
-        
-        switch selectedPaymentIndex {
-        case 0:
-            paymentStrategy = CreditCardPayment()
-        case 1:
-            paymentStrategy = PayPalPayment()
-        case 2:
-            paymentStrategy = ApplePayPayment()
-        default:
-            break
-        }
-        
+        let shippingStrategy = selectedShippingStrategy()
+        let paymentStrategy = selectedPaymentStrategy()
 
         shippingContext.setStrategy(shippingStrategy)
         paymentContext.setStrategy(paymentStrategy)
@@ -128,11 +112,33 @@ class ProductDetailViewController: UIViewController {
         let selectedShipping = shippingContext.getDescription()
         let selectedPayment = paymentContext.processPayment(amount: product.price)
 
-        // Add product to the cart using the cart context
-        cartContext.setStrategy(AddToCart(productId: product.id ?? "",
-                                          shippingMethod: selectedShipping,
-                                          paymentMethod: selectedPayment))
-        cartContext.executeStrategy { result in
+        addToCart(productId: product.id ?? "", shippingMethod: selectedShipping, paymentMethod: selectedPayment)
+    }
+
+    // Returns the selected shipping strategy based on the segmented control index
+    private func selectedShippingStrategy() -> ShippingMethodStrategy {
+        return shippingSegmentedControl.selectedSegmentIndex == 0 ? StandardShipping() : ExpressShipping()
+    }
+
+    // Returns the selected payment strategy based on the segmented control index
+    private func selectedPaymentStrategy() -> PaymentMethodStrategy {
+        switch paymentSegmentedControl.selectedSegmentIndex {
+        case 0:
+            return CreditCardPayment()
+        case 1:
+            return PayPalPayment()
+        case 2:
+            return ApplePayPayment()
+        default:
+            return CreditCardPayment() // Default to credit card
+        }
+    }
+
+    // Adds a product to the cart using the current context
+    private func addToCart(productId: String, shippingMethod: String, paymentMethod: String) {
+        cartContext.setStrategy(AddToCart(productId: productId, shippingMethod: shippingMethod, paymentMethod: paymentMethod))
+        cartContext.executeStrategy { [weak self] result in
+            guard let self = self else { return }
             switch result {
             case .success:
                 self.showAlert(message: "Product added to cart!")

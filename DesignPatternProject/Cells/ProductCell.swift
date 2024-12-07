@@ -7,12 +7,15 @@
 
 import UIKit
 
+// ProductCell represents a custom UICollectionViewCell for displaying product details
 class ProductCell: UICollectionViewCell {
     
+    // UI elements
     @IBOutlet weak var imageView: UIImageView!
     @IBOutlet weak var titleLabel: UILabel!
     @IBOutlet weak var priceLabel: UILabel!
     
+    // Configures the cell with data from a Product object
     func configure(_ dataSource: Product) {
         if let imageData = dataSource.imageData {
             imageView.image = UIImage(data: imageData)

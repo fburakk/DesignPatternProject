@@ -8,33 +8,34 @@
 import UIKit
 
 class CartViewController: UIViewController {
-
+    
     @IBOutlet weak var collectionView: UICollectionView!
     
-    private var cartItems: [CartItemWithDetails] = [] // Updated to hold detailed cart items
+    private var cartItems: [CartItemWithDetails] = [] // Holds detailed cart items
     private let cartContext = CartContext(strategy: FetchCartItems()) // Initialize context with FetchCartItems strategy
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-
         setupCollectionView()
         fetchCartItems() // Fetch cart items on load
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        fetchCartItems() // Refresh cart items when view appears
+    }
+    
+    // Sets up the collection view delegate, data source, and layout
     private func setupCollectionView() {
         collectionView.delegate = self
         collectionView.dataSource = self
         collectionView.collectionViewLayout = createCompositionalLayout()
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        fetchCartItems()
-    }
-    
+    // Fetches cart items using the FetchCartItems strategy
     private func fetchCartItems() {
         cartContext.setStrategy(FetchCartItems())
-        cartContext.executeStrategy { [weak self] result in
+        executeCartStrategy { [weak self] result in
             guard let self = self else { return }
             switch result {
             case .success(let fetchedItems):
@@ -46,49 +47,44 @@ class CartViewController: UIViewController {
         }
     }
     
+    // Creates a compositional layout for the collection view
     private func createCompositionalLayout() -> UICollectionViewLayout {
-        // Define the size of an individual item
-        let itemSize = NSCollectionLayoutSize(
-            widthDimension: .fractionalWidth(1.0),  // Full width
-            heightDimension: .absolute(45)       // Fixed height
-        )
+        let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(45))
         let item = NSCollectionLayoutItem(layoutSize: itemSize)
-
-        // Define the group to stack items vertically
-        let groupSize = NSCollectionLayoutSize(
-            widthDimension: .fractionalWidth(1.0), // Full width
-            heightDimension: .estimated(45)      // Estimated height based on content
-        )
+        
+        let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .estimated(45))
         let group = NSCollectionLayoutGroup.vertical(layoutSize: groupSize, subitems: [item])
-
-        // Define the section
+        
         let section = NSCollectionLayoutSection(group: group)
         section.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0)
-        section.interGroupSpacing = 10 // Space between items
-
-        // Create and return the layout
+        section.interGroupSpacing = 10
+        
         return UICollectionViewCompositionalLayout(section: section)
+    }
+    
+    // Executes the current strategy set in CartContext
+    private func executeCartStrategy(completion: @escaping (Result<Any, Error>) -> Void) {
+        cartContext.executeStrategy(completion: completion)
     }
     
     @IBAction func orderButtonTapped(_ sender: Any) {
         if cartItems.isEmpty {
-            let alert = UIAlertController(title: "Cart Empty", message: "No items in the cart to order.", preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
-            present(alert, animated: true)
+            showAlert(title: "Cart Empty", message: "No items in the cart to order.")
             return
         }
-
+        
         let shippingContext = ShippingContext(strategy: StandardShipping())
         let paymentContext = PaymentContext(strategy: CreditCardPayment())
-
-        // Prepare details for the alert
+        
         var message = "Your Cart Items:\n\n"
         var totalCost: Double = 0.0
+        
+        // Calculate the total cost and prepare the order summary
         for item in cartItems {
-            let shippingCost = shippingContext.calculateCost(for: 10) // Assume 10 as distance
+            let shippingCost = shippingContext.calculateCost(for: 10)
             let itemCost = item.price + shippingCost
             totalCost += itemCost
-
+            
             message += """
             Name: \(item.name)
             Price: $\(item.price)
@@ -98,39 +94,58 @@ class CartViewController: UIViewController {
             """
         }
         message += "\nTotal Cost: $\(totalCost)"
-
-        let alert = UIAlertController(title: "Order Summary", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Done", style: .default, handler: { [weak self] _ in
-            self?.deleteAllCartItems()
-        }))
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-
+        
+        showAlert(
+            title: "Order Summary",
+            message: message,
+            actions: [
+                UIAlertAction(title: "Done", style: .default, handler: { [weak self] _ in
+                    self?.deleteAllCartItems()
+                }),
+                UIAlertAction(title: "Cancel", style: .cancel)
+            ]
+        )
+    }
+    
+    // Shows an alert with a title, message, and optional actions
+    private func showAlert(title: String, message: String, actions: [UIAlertAction] = []) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        if actions.isEmpty {
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+        } else {
+            actions.forEach { alert.addAction($0) }
+        }
         present(alert, animated: true)
     }
-    // Helper function to delete all items from the cart
+    
+    // Deletes all items from the cart
     private func deleteAllCartItems() {
         for item in cartItems {
-            let removeFromCart = RemoveFromCart(productId: item.id)
-            cartContext.setStrategy(removeFromCart)
-            cartContext.executeStrategy { result in
-                switch result {
-                case .success:
-                    print("Product \(item.name) removed from cart.")
-                case .failure(let error):
-                    print("Failed to remove product \(item.name): \(error.localizedDescription)")
-                }
-            }
+            removeItemFromCart(item)
         }
-        
         cartItems.removeAll() // Clear the local array
         collectionView.reloadData() // Refresh the UI
         print("All items removed from the cart.")
+    }
+    
+    // Removes a specific item from the cart
+    private func removeItemFromCart(_ item: CartItemWithDetails) {
+        let removeFromCart = RemoveFromCart(productId: item.id)
+        cartContext.setStrategy(removeFromCart)
+        executeCartStrategy { result in
+            switch result {
+            case .success:
+                print("Product \(item.name) removed from cart.")
+            case .failure(let error):
+                print("Failed to remove product \(item.name): \(error.localizedDescription)")
+            }
+        }
     }
 }
 
 extension CartViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        return 1 // Single section for cart items
+        return 1
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -152,10 +167,10 @@ extension CartViewController: CartCellDelegate {
     func closeButtonDidTap(_ id: String?) {
         guard let productId = id else { return }
         
-        // Handle remove from cart logic
+        // Remove the item from the cart
         let removeFromCart = RemoveFromCart(productId: productId)
         cartContext.setStrategy(removeFromCart)
-        cartContext.executeStrategy { [weak self] result in
+        executeCartStrategy { [weak self] result in
             guard let self = self else { return }
             switch result {
             case .success:

@@ -7,93 +7,66 @@
 
 import Foundation
 
-// MARK: - Why Singleton?
-
-/**
- The Singleton pattern was chosen for `ProductObserver` because:
-
- 1. **Centralized Notification Management**:
-    - Ensures a single source of truth for all product-related notifications.
-    - All components of the app (e.g., `UploadProductViewController` and `ProductsViewController`)
-      can rely on the same instance to stay updated.
-
- 2. **Global Accessibility**:
-    - Provides a globally accessible instance without requiring explicit dependency injection or passing references.
-
- 3. **State Preservation**:
-    - Maintains a consistent list of observers and ensures no redundant or missing updates during the app's lifecycle.
-
- 4. **Resource Efficiency**:
-    - Avoids creating multiple instances, which could lead to inconsistencies or unnecessary resource usage.
-
- 5. **Decoupling**:
-    - Allows components like `UploadProductViewController` to notify changes without directly referencing
-      `ProductsViewController` or other observers. This promotes modularity and scalability.
-*/
-
-
-
-
+// Observers will implement this protocol to receive updates about products
 protocol PProductObserver: AnyObject {
     func update(products: [Product])
 }
 
-
+// The Subject will manage and notify observers about product updates
 protocol PProductSubject {
-    func addObserver(_ observer: PProductObserver)
-    func removeObserver(_ observer: PProductObserver)
+    // Adds an observer with a handler for product updates and returns a unique ID
+    func addObserver(_ observer: AnyObject, handler: @escaping ProductSubject.ProductUpdateHandler) -> UUID
+    
+    // Removes an observer using its unique ID
+    func removeObserver(with id: UUID)
+    
+    // Notifies all registered observers with the latest list of products
     func notifyObservers(with products: [Product])
 }
 
-
-/// A singleton class that manages observers for product updates.
-/// This class is responsible for notifying registered observers when product-related changes occur,
-/// such as adding, updating, or deleting products.
-class ProductSubject {
+// It manages a list of observers and notifies them of updates to the products
+class ProductSubject: PProductSubject {
     
-    // MARK: - Singleton Instance
-
-    /// The shared singleton instance of `ProductObserver`.
+    // Singleton instance to ensure only one ProductSubject exists
     static let shared = ProductSubject()
-
-    // Private initializer to ensure only one instance is created.
+    
+    // Private initializer to prevent external instantiation
     private init() {}
-
-    // MARK: - Properties
-
-    /// A dictionary of observer IDs and their associated update handlers.
-    /// Key: A unique `UUID` representing the observer.
-    /// Value: A closure that executes when product updates occur.
+    
+    // Type alias for the product update handler
     typealias ProductUpdateHandler = ([Product]) -> Void
+    
+    // Dictionary to store observers and their associated update handlers, identified by UUIDs
     private var observers: [UUID: ProductUpdateHandler] = [:]
-
-    // MARK: - Public Methods
-
-    /// Adds an observer for product updates.
-    ///
-    /// - Parameters:
-    ///   - observer: The object registering for updates.
-    ///   - handler: A closure that executes when products are updated.
-    /// - Returns: A unique `UUID` that can be used to remove the observer later.
+    
+    // Adds a new observer with a handler for product updates
+    // Returns a UUID to uniquely identify the observer
     func addObserver(_ observer: AnyObject, handler: @escaping ProductUpdateHandler) -> UUID {
-        let id = UUID()
-        observers[id] = handler
+        let id = UUID() // Generate a unique identifier for the observer
+        observers[id] = handler // Store the observer's handler in the dictionary
         return id
     }
-
-    /// Removes an observer using its unique `UUID`.
-    ///
-    /// - Parameter id: The `UUID` of the observer to be removed.
+    
+    // Removes an observer from the list using its unique ID
     func removeObserver(with id: UUID) {
-        observers.removeValue(forKey: id)
+        observers.removeValue(forKey: id) // Remove the observer from the dictionary
     }
-
-    /// Notifies all registered observers of product updates.
-    ///
-    /// - Parameter products: The updated list of products.
+    
+    // Notifies all observers with the updated list of products
     func notifyObservers(with products: [Product]) {
         for handler in observers.values {
-            handler(products)
+            handler(products) // Call each observer's handler with the updated products
+        }
+    }
+}
+
+// It listens for updates from the ProductSubject
+class ProductObserver: PProductObserver {
+    // Handles the product update notification
+    func update(products: [Product]) {
+        print("Received product updates:")
+        for product in products {
+            print("- \(product.name ?? "")")
         }
     }
 }
